@@ -6,19 +6,30 @@ import { Claim, DecisionBrief, StreamEvent } from '@/lib/types';
 export const runtime = 'nodejs';
 export const maxDuration = 120;
 
-const MODEL = process.env.AI_MODEL || 'anthropic/claude-haiku-4-5-20251001';
+const MODEL = process.env.AI_MODEL || 'llama-3.3-70b-versatile';
 
 let _client: OpenAI | null = null;
 function getClient(): OpenAI {
   if (!_client) {
-    _client = new OpenAI({
-      baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: process.env.OPENROUTER_API_KEY!,
-      defaultHeaders: {
-        'HTTP-Referer': 'https://github.com/EphraimIndugubilli/ai-war-room',
-        'X-Title': 'AI War Room',
-      },
-    });
+    const groqKey = process.env.GROQ_API_KEY;
+    const orKey = process.env.OPENROUTER_API_KEY;
+    if (groqKey) {
+      _client = new OpenAI({
+        baseURL: 'https://api.groq.com/openai/v1',
+        apiKey: groqKey,
+      });
+    } else if (orKey) {
+      _client = new OpenAI({
+        baseURL: 'https://openrouter.ai/api/v1',
+        apiKey: orKey,
+        defaultHeaders: {
+          'HTTP-Referer': 'https://github.com/EphraimIndugubilli/ai-war-room',
+          'X-Title': 'AI War Room',
+        },
+      });
+    } else {
+      throw new Error('No API key set. Add GROQ_API_KEY or OPENROUTER_API_KEY to .env.local');
+    }
   }
   return _client;
 }
@@ -156,8 +167,8 @@ export async function POST(req: NextRequest) {
     return new Response('Question required', { status: 400 });
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
-    return new Response('OPENROUTER_API_KEY not configured — add it to .env.local', { status: 500 });
+  if (!process.env.GROQ_API_KEY && !process.env.OPENROUTER_API_KEY) {
+    return new Response('No API key configured. Add GROQ_API_KEY or OPENROUTER_API_KEY to .env.local', { status: 500 });
   }
 
   const stream = new ReadableStream({
