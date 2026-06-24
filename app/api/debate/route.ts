@@ -6,16 +6,22 @@ import { Claim, DecisionBrief, StreamEvent } from '@/lib/types';
 export const runtime = 'nodejs';
 export const maxDuration = 120;
 
-const openrouter = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY || '',
-  defaultHeaders: {
-    'HTTP-Referer': 'https://github.com/EphraimIndugubilli/ai-war-room',
-    'X-Title': 'AI War Room',
-  },
-});
-
 const MODEL = process.env.AI_MODEL || 'anthropic/claude-haiku-4-5-20251001';
+
+let _client: OpenAI | null = null;
+function getClient(): OpenAI {
+  if (!_client) {
+    _client = new OpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: process.env.OPENROUTER_API_KEY!,
+      defaultHeaders: {
+        'HTTP-Referer': 'https://github.com/EphraimIndugubilli/ai-war-room',
+        'X-Title': 'AI War Room',
+      },
+    });
+  }
+  return _client;
+}
 
 function send(controller: ReadableStreamDefaultController, event: StreamEvent) {
   const encoder = new TextEncoder();
@@ -57,7 +63,7 @@ async function runAgent(
     ? `The question being debated: "${question}"\n\nWhat other agents have said so far:\n${history}\n\nNow give your perspective as ${agent.name}. Be direct, specific, and respond to what others have said where relevant. 3-4 focused paragraphs.`
     : `The question being debated: "${question}"\n\nGive your opening argument as ${agent.name}. Be direct and specific. 3-4 focused paragraphs.`;
 
-  const stream = await openrouter.chat.completions.create({
+  const stream = await getClient().chat.completions.create({
     model: MODEL,
     messages: [
       { role: 'system', content: agent.systemPrompt },
@@ -87,7 +93,7 @@ async function generateBrief(
   debate: string,
   controller: ReadableStreamDefaultController
 ): Promise<void> {
-  const stream = await openrouter.chat.completions.create({
+  const stream = await getClient().chat.completions.create({
     model: MODEL,
     messages: [
       {
