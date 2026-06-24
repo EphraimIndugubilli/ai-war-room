@@ -6,6 +6,7 @@ import { AgentRole, Claim, DecisionBrief, StreamEvent } from '@/lib/types';
 import AgentCard from '@/components/AgentCard';
 import ArgumentGraph from '@/components/ArgumentGraph';
 import DecisionBriefCard from '@/components/DecisionBrief';
+import ShareBar from '@/components/ShareBar';
 
 const EXAMPLES = [
   'Should I build a SaaS product solo or find a co-founder first?',
@@ -166,7 +167,16 @@ export default function WarRoom() {
                     ? <div className="flex items-center justify-center h-full"><p className="text-slate-700 text-sm">Claims appear as agents speak…</p></div>
                     : <ArgumentGraph claims={claims} />}
                 </div>
-                {brief && <DecisionBriefCard brief={brief} />}
+                {brief && (
+                  <>
+                    <DecisionBriefCard brief={brief} />
+                    <ShareBar
+                      question={question}
+                      agentContents={Object.fromEntries(AGENT_ORDER.map(r => [r, agents[r].content]))}
+                      brief={brief}
+                    />
+                  </>
+                )}
               </div>
             </div>
           </div>
