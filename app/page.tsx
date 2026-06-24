@@ -7,6 +7,7 @@ import AgentCard from '@/components/AgentCard';
 import ArgumentGraph from '@/components/ArgumentGraph';
 import DecisionBriefCard from '@/components/DecisionBrief';
 import ShareBar from '@/components/ShareBar';
+import DebateHistory, { saveDebate, DebateRecord } from '@/components/DebateHistory';
 
 const EXAMPLES = [
   'Should I build a SaaS product solo or find a co-founder first?',
@@ -37,8 +38,10 @@ export default function WarRoom() {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [brief, setBrief] = useState<DecisionBrief | null>(null);
   const [error, setError] = useState('');
+  const [currentDebateId, setCurrentDebateId] = useState<string>('');
   const abortRef = useRef<AbortController | null>(null);
   const phaseRef = useRef<'opening' | 'rebuttal'>('opening');
+  const questionRef = useRef<string>('');
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
@@ -54,6 +57,9 @@ export default function WarRoom() {
     if (q) setQuestion(q);
     reset();
     await new Promise(r => setTimeout(r, 50));
+    const debateId = `debate-${Date.now()}`;
+    setCurrentDebateId(debateId);
+    questionRef.current = finalQ;
     setStatus('running');
     phaseRef.current = 'opening';
     abortRef.current = new AbortController();
@@ -129,6 +135,10 @@ export default function WarRoom() {
       setClaims(p => [...p, ...ev.claims]);
     } else if (ev.type === 'brief') {
       setBrief(ev.brief);
+      setCurrentDebateId(id => {
+        if (id) saveDebate({ id, question: questionRef.current, brief: ev.brief, timestamp: Date.now() });
+        return id;
+      });
     } else if (ev.type === 'done') {
       setStatus('complete');
     } else if (ev.type === 'error') {
@@ -147,19 +157,30 @@ export default function WarRoom() {
             <p className="text-xs text-slate-500">Multi-agent debate · 2 rounds</p>
           </div>
         </div>
-        {status !== 'idle' && (
-          <div className="flex items-center gap-3">
-            {status === 'running' && (
-              <div className="flex items-center gap-2 text-xs">
-                <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                <span className="text-amber-400">
-                  {currentPhase === 'opening' ? 'Round 1 — Opening' : 'Round 2 — Rebuttals'}
-                </span>
-              </div>
-            )}
+        <div className="flex items-center gap-3">
+          {status === 'running' && (
+            <div className="flex items-center gap-2 text-xs">
+              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-amber-400">
+                {currentPhase === 'opening' ? 'Round 1 — Opening' : 'Round 2 — Rebuttals'}
+              </span>
+            </div>
+          )}
+          <DebateHistory
+            currentId={currentDebateId}
+            onSelect={(rec: DebateRecord) => {
+              reset();
+              setQuestion(rec.question);
+              questionRef.current = rec.question;
+              setBrief(rec.brief);
+              setCurrentDebateId(rec.id);
+              setStatus('complete');
+            }}
+          />
+          {status !== 'idle' && (
             <button onClick={reset} className="text-xs px-3 py-1.5 rounded-lg border text-slate-400 hover:text-white transition-colors" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>← New</button>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
