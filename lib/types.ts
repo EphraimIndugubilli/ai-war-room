@@ -1,0 +1,57 @@
+export type AgentRole =
+  | 'devil_advocate'
+  | 'optimist'
+  | 'risk_analyst'
+  | 'historian'
+  | 'contrarian';
+
+export interface Agent {
+  role: AgentRole;
+  name: string;
+  emoji: string;
+  color: string;
+  tagline: string;
+  systemPrompt: string;
+}
+
+export interface Claim {
+  id: string;
+  agentRole: AgentRole;
+  text: string;
+  type: 'argument' | 'challenge' | 'rebuttal' | 'support' | 'conclusion';
+  challengesId?: string;
+  timestamp: number;
+}
+
+export interface DebateRound {
+  round: number;
+  agentRole: AgentRole;
+  content: string;
+  claims: Claim[];
+  timestamp: number;
+}
+
+export interface DecisionBrief {
+  summary: string;
+  majority: string;
+  minority: string;
+  recommendation: string;
+  confidence: number;
+  risks: string[];
+  nextSteps: string[];
+}
+
+export interface DebateState {
+  question: string;
+  rounds: DebateRound[];
+  brief: DecisionBrief | null;
+  status: 'idle' | 'running' | 'complete';
+}
+
+export type StreamEvent =
+  | { type: 'round_start'; agentRole: AgentRole; round: number }
+  | { type: 'token'; agentRole: AgentRole; token: string }
+  | { type: 'round_end'; agentRole: AgentRole; content: string; claims: Claim[] }
+  | { type: 'brief'; brief: DecisionBrief }
+  | { type: 'done' }
+  | { type: 'error'; message: string };
