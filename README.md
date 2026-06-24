@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+﻿# AI War Room
 
-## Getting Started
+> Drop a hard question. Watch 5 specialist AI agents debate it in real-time.
 
-First, run the development server:
+**Live multi-agent debate system** — five AI personalities with distinct roles argue any decision, visible in real-time with a live argument graph and a structured decision brief at the end.
+
+## Agents
+
+| Agent | Role |
+|-------|------|
+| 😈 Devil's Advocate | Tears apart every assumption |
+| 🚀 Optimist | Builds the strongest case for it |
+| ⚠️ Risk Analyst | Quantifies what could go wrong |
+| 📚 Historian | Finds past cases where this played out |
+| 🔄 Contrarian | Argues the option nobody is considering |
+
+## Features
+
+- **Real-time SSE streaming** — each agent speaks token by token, visibly
+- **Live argument graph** — canvas physics simulation showing claims as nodes
+- **Decision brief** — structured output: majority/minority view, confidence %, risks, next steps
+- **Model-agnostic** — swap any OpenRouter model via env var
+
+## Stack
+
+- **Next.js 15** (App Router, TypeScript)
+- **Tailwind CSS**
+- **OpenRouter** via OpenAI SDK (access Claude, GPT-4o, Llama, etc.)
+- **Canvas API** for live argument graph
+
+## Setup
 
 ```bash
+git clone https://github.com/EphraimIndugubilli/ai-war-room
+cd ai-war-room
+npm install
+cp .env.example .env.local
+# Add your OPENROUTER_API_KEY to .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Get an OpenRouter API key at [openrouter.ai](https://openrouter.ai)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How it works
 
-## Learn More
+1. You submit a question
+2. Five agents run sequentially, each reading the previous agents' arguments
+3. Each agent streams its response token-by-token via SSE
+4. Claims are extracted and rendered as a physics-simulated graph
+5. After all agents finish, a neutral analyst synthesizes a decision brief
 
-To learn more about Next.js, take a look at the following resources:
+## Built by
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Ephraim Indugubilli — [github.com/EphraimIndugubilli](https://github.com/EphraimIndugubilli)
