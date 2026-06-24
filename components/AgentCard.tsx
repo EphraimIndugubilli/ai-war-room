@@ -1,16 +1,22 @@
 'use client';
 
-import { Agent, AgentRole } from '@/lib/types';
+import { Agent } from '@/lib/types';
 
 interface Props {
   agent: Agent;
   isActive: boolean;
   isDone: boolean;
   content: string;
+  rebuttalContent: string;
   isStreaming: boolean;
+  currentPhase: 'opening' | 'rebuttal';
 }
 
-export default function AgentCard({ agent, isActive, isDone, content, isStreaming }: Props) {
+export default function AgentCard({
+  agent, isActive, isDone, content, rebuttalContent, isStreaming, currentPhase,
+}: Props) {
+  const showRebuttal = rebuttalContent || (isActive && currentPhase === 'rebuttal');
+
   return (
     <div
       className="rounded-2xl p-4 border transition-all duration-300"
@@ -34,19 +40,19 @@ export default function AgentCard({ agent, isActive, isDone, content, isStreamin
           <div className="font-semibold text-sm text-white leading-tight">{agent.name}</div>
           <div className="text-xs mt-0.5" style={{ color: agent.color }}>{agent.tagline}</div>
         </div>
-        {isActive && (
-          <div className="ml-auto flex-shrink-0">
+        <div className="ml-auto flex-shrink-0 flex items-center gap-2">
+          {isActive && (
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: agent.color }} />
-          </div>
-        )}
-        {isDone && !isActive && (
-          <div className="ml-auto text-xs text-slate-500 flex-shrink-0">Done</div>
-        )}
+          )}
+          {isDone && !isActive && (
+            <span className="text-xs text-slate-500">Done</span>
+          )}
+        </div>
       </div>
 
-      {/* Content */}
+      {/* Round 1: Opening */}
       <div className="min-h-[60px]">
-        {isActive && !content && (
+        {isActive && currentPhase === 'opening' && !content && (
           <div className="typing text-slate-500 text-sm" style={{ color: agent.color }}>
             <span /><span /><span />
           </div>
@@ -54,7 +60,7 @@ export default function AgentCard({ agent, isActive, isDone, content, isStreamin
         {content && (
           <p className="text-sm text-slate-300 leading-relaxed fade-up line-clamp-6">
             {content}
-            {isStreaming && isActive && (
+            {isStreaming && isActive && currentPhase === 'opening' && (
               <span
                 className="inline-block w-0.5 h-4 ml-0.5 animate-pulse align-middle"
                 style={{ background: agent.color }}
@@ -62,10 +68,35 @@ export default function AgentCard({ agent, isActive, isDone, content, isStreamin
             )}
           </p>
         )}
-        {!isActive && !isDone && (
+        {!isActive && !isDone && !content && (
           <p className="text-sm text-slate-600 italic">Waiting…</p>
         )}
       </div>
+
+      {/* Round 2: Rebuttal */}
+      {showRebuttal && (
+        <div className="mt-3 pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          <div className="text-xs mb-2 font-medium" style={{ color: `${agent.color}99` }}>
+            ↩ Rebuttal
+          </div>
+          {isActive && currentPhase === 'rebuttal' && !rebuttalContent && (
+            <div className="typing text-slate-500 text-sm" style={{ color: agent.color }}>
+              <span /><span /><span />
+            </div>
+          )}
+          {rebuttalContent && (
+            <p className="text-sm text-slate-300 leading-relaxed fade-up line-clamp-5">
+              {rebuttalContent}
+              {isStreaming && isActive && currentPhase === 'rebuttal' && (
+                <span
+                  className="inline-block w-0.5 h-4 ml-0.5 animate-pulse align-middle"
+                  style={{ background: agent.color }}
+                />
+              )}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

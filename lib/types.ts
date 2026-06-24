@@ -49,9 +49,10 @@ export interface DebateState {
 }
 
 export type StreamEvent =
-  | { type: 'round_start'; agentRole: AgentRole; round: number }
-  | { type: 'token'; agentRole: AgentRole; token: string }
-  | { type: 'round_end'; agentRole: AgentRole; content: string; claims: Claim[] }
+  | { type: 'round_start'; agentRole: AgentRole; round: number; phase: 'opening' | 'rebuttal' }
+  | { type: 'token'; agentRole: AgentRole; token: string; phase: 'opening' | 'rebuttal' }
+  | { type: 'round_end'; agentRole: AgentRole; content: string; claims: Claim[]; phase: 'opening' | 'rebuttal' }
+  | { type: 'phase_change'; phase: 'opening' | 'rebuttal' }
   | { type: 'brief'; brief: DecisionBrief }
   | { type: 'done' }
   | { type: 'error'; message: string };

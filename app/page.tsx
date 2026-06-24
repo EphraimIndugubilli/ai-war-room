@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useRef, useCallback } from 'react';
 import { AGENTS, AGENT_ORDER } from '@/lib/agents';
@@ -15,24 +15,36 @@ const EXAMPLES = [
   'Should a startup raise VC funding or stay bootstrapped?',
 ];
 
-type AgentState = { content: string; isActive: boolean; isDone: boolean; isStreaming: boolean };
+type AgentState = {
+  content: string;
+  rebuttalContent: string;
+  isActive: boolean;
+  isDone: boolean;
+  isStreaming: boolean;
+};
 type AgentsMap = Record<AgentRole, AgentState>;
 
 const freshAgents = (): AgentsMap =>
-  Object.fromEntries(AGENT_ORDER.map(r => [r, { content: '', isActive: false, isDone: false, isStreaming: false }])) as AgentsMap;
+  Object.fromEntries(
+    AGENT_ORDER.map(r => [r, { content: '', rebuttalContent: '', isActive: false, isDone: false, isStreaming: false }])
+  ) as AgentsMap;
 
 export default function WarRoom() {
   const [question, setQuestion] = useState('');
   const [status, setStatus] = useState<'idle' | 'running' | 'complete'>('idle');
   const [agents, setAgents] = useState<AgentsMap>(freshAgents);
+  const [currentPhase, setCurrentPhase] = useState<'opening' | 'rebuttal'>('opening');
   const [claims, setClaims] = useState<Claim[]>([]);
   const [brief, setBrief] = useState<DecisionBrief | null>(null);
   const [error, setError] = useState('');
   const abortRef = useRef<AbortController | null>(null);
+  const phaseRef = useRef<'opening' | 'rebuttal'>('opening');
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
+    phaseRef.current = 'opening';
     setAgents(freshAgents());
+    setCurrentPhase('opening');
     setClaims([]); setBrief(null); setError(''); setStatus('idle');
   }, []);
 
@@ -41,9 +53,9 @@ export default function WarRoom() {
     if (!finalQ) return;
     if (q) setQuestion(q);
     reset();
-    // small delay so state flushes before re-setting
     await new Promise(r => setTimeout(r, 50));
     setStatus('running');
+    phaseRef.current = 'opening';
     abortRef.current = new AbortController();
 
     try {
@@ -75,12 +87,45 @@ export default function WarRoom() {
   }, [question, reset]);
 
   function handleEvent(ev: StreamEvent) {
-    if (ev.type === 'round_start') {
+    if (ev.type === 'phase_change') {
+      phaseRef.current = ev.phase;
+      setCurrentPhase(ev.phase);
+      // Reset all agents to not-active for the new round
+      setAgents(p =>
+        Object.fromEntries(
+          AGENT_ORDER.map(r => [r, { ...p[r], isActive: false, isStreaming: false }])
+        ) as AgentsMap
+      );
+    } else if (ev.type === 'round_start') {
       setAgents(p => ({ ...p, [ev.agentRole]: { ...p[ev.agentRole], isActive: true, isStreaming: true } }));
     } else if (ev.type === 'token') {
-      setAgents(p => ({ ...p, [ev.agentRole]: { ...p[ev.agentRole], content: p[ev.agentRole].content + ev.token, isStreaming: true } }));
+      const phase = ev.phase;
+      setAgents(p => ({
+        ...p,
+        [ev.agentRole]: {
+          ...p[ev.agentRole],
+          ...(phase === 'opening'
+            ? { content: p[ev.agentRole].content + ev.token }
+            : { rebuttalContent: p[ev.agentRole].rebuttalContent + ev.token }
+          ),
+          isStreaming: true,
+        },
+      }));
     } else if (ev.type === 'round_end') {
-      setAgents(p => ({ ...p, [ev.agentRole]: { isActive: false, isDone: true, isStreaming: false, content: ev.content } }));
+      const phase = ev.phase;
+      setAgents(p => ({
+        ...p,
+        [ev.agentRole]: {
+          ...p[ev.agentRole],
+          isActive: false,
+          isDone: true,
+          isStreaming: false,
+          ...(phase === 'opening'
+            ? { content: ev.content }
+            : { rebuttalContent: ev.content }
+          ),
+        },
+      }));
       setClaims(p => [...p, ...ev.claims]);
     } else if (ev.type === 'brief') {
       setBrief(ev.brief);
@@ -99,12 +144,19 @@ export default function WarRoom() {
           <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-xl">⚔️</div>
           <div>
             <h1 className="font-bold text-white text-lg leading-tight">AI War Room</h1>
-            <p className="text-xs text-slate-500">Multi-agent debate system</p>
+            <p className="text-xs text-slate-500">Multi-agent debate · 2 rounds</p>
           </div>
         </div>
         {status !== 'idle' && (
           <div className="flex items-center gap-3">
-            {status === 'running' && <div className="flex items-center gap-2 text-xs text-amber-400"><div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />Live</div>}
+            {status === 'running' && (
+              <div className="flex items-center gap-2 text-xs">
+                <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span className="text-amber-400">
+                  {currentPhase === 'opening' ? 'Round 1 — Opening' : 'Round 2 — Rebuttals'}
+                </span>
+              </div>
+            )}
             <button onClick={reset} className="text-xs px-3 py-1.5 rounded-lg border text-slate-400 hover:text-white transition-colors" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>← New</button>
           </div>
         )}
@@ -115,7 +167,7 @@ export default function WarRoom() {
           <div className="max-w-2xl mx-auto mb-12 fade-up">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-white mb-3">Drop a hard question.<br /><span className="text-indigo-400">Watch 5 AI minds fight over it.</span></h2>
-              <p className="text-slate-400 text-sm">Devil&apos;s Advocate, Optimist, Risk Analyst, Historian, and Contrarian debate in real-time — then a decision brief is generated.</p>
+              <p className="text-slate-400 text-sm">Devil&apos;s Advocate, Optimist, Risk Analyst, Historian, and Contrarian debate in 2 rounds — then a decision brief is synthesized.</p>
             </div>
             <div className="rounded-2xl border p-5" style={{ background: '#0d1320', borderColor: 'rgba(255,255,255,0.08)' }}>
               <textarea value={question} onChange={e => setQuestion(e.target.value)}
@@ -153,8 +205,16 @@ export default function WarRoom() {
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               <div className="xl:col-span-1 flex flex-col gap-3">
                 {AGENT_ORDER.map(role => (
-                  <AgentCard key={role} agent={AGENTS[role]} isActive={agents[role].isActive}
-                    isDone={agents[role].isDone} content={agents[role].content} isStreaming={agents[role].isStreaming} />
+                  <AgentCard
+                    key={role}
+                    agent={AGENTS[role]}
+                    isActive={agents[role].isActive}
+                    isDone={agents[role].isDone}
+                    content={agents[role].content}
+                    rebuttalContent={agents[role].rebuttalContent}
+                    isStreaming={agents[role].isStreaming}
+                    currentPhase={currentPhase}
+                  />
                 ))}
               </div>
               <div className="xl:col-span-2 flex flex-col gap-6">
