@@ -159,11 +159,30 @@ export default function WarRoom() {
         </div>
         <div className="flex items-center gap-3">
           {status === 'running' && (
-            <div className="flex items-center gap-2 text-xs">
-              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              <span className="text-amber-400">
-                {currentPhase === 'opening' ? 'Round 1 — Opening' : 'Round 2 — Rebuttals'}
-              </span>
+            <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-1.5">
+                {AGENT_ORDER.map(role => (
+                  <div
+                    key={role}
+                    title={role}
+                    className="w-2 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      background: agents[role].isDone
+                        ? '#22c55e'
+                        : agents[role].isActive
+                        ? '#f59e0b'
+                        : 'rgba(255,255,255,0.15)',
+                      boxShadow: agents[role].isActive ? '0 0 6px #f59e0b' : 'none',
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span className="text-amber-400">
+                  {currentPhase === 'opening' ? 'Round 1 — Opening' : 'Round 2 — Rebuttals'}
+                </span>
+              </div>
             </div>
           )}
           <DebateHistory
