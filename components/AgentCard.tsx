@@ -45,7 +45,9 @@ export default function AgentCard({
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: agent.color }} />
           )}
           {isDone && !isActive && (
-            <span className="text-xs text-slate-500">Done</span>
+            <span className="text-xs text-slate-500 tabular-nums">
+              {(content.split(/\s+/).filter(Boolean).length + rebuttalContent.split(/\s+/).filter(Boolean).length)} words
+            </span>
           )}
         </div>
       </div>
@@ -69,7 +71,11 @@ export default function AgentCard({
           </p>
         )}
         {!isActive && !isDone && !content && (
-          <p className="text-sm text-slate-600 italic">Waiting…</p>
+          <div className="space-y-2 py-1" aria-label="Waiting for agent">
+            <div className="h-3 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.06)', width: '88%' }} />
+            <div className="h-3 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.06)', width: '72%', animationDelay: '150ms' }} />
+            <div className="h-3 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.06)', width: '60%', animationDelay: '300ms' }} />
+          </div>
         )}
       </div>
 
