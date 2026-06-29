@@ -8,6 +8,7 @@ import ArgumentGraph from '@/components/ArgumentGraph';
 import DecisionBriefCard from '@/components/DecisionBrief';
 import ShareBar from '@/components/ShareBar';
 import DebateHistory, { saveDebate, DebateRecord } from '@/components/DebateHistory';
+import DebateRail from '@/components/DebateRail';
 
 const EXAMPLES = [
   'Should I build a SaaS product solo or find a co-founder first?',
@@ -236,11 +237,12 @@ export default function WarRoom() {
 
         {status !== 'idle' && (
           <div>
-            <div className="rounded-xl px-5 py-3 mb-6 border fade-up" style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.2)' }}>
+            <div className="rounded-xl px-5 py-3 mb-4 border fade-up" style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.2)' }}>
               <span className="text-xs text-indigo-400 uppercase tracking-widest mr-3">Question</span>
               <span className="text-white font-medium">{question}</span>
               {status === 'running' && <button onClick={() => abortRef.current?.abort()} className="ml-4 text-xs text-slate-500 hover:text-red-400 transition-colors">Stop</button>}
             </div>
+            <DebateRail status={status} phase={currentPhase} agents={agents} />
             {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               <div className="xl:col-span-1 flex flex-col gap-3">
