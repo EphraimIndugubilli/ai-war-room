@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import OpenAI from 'openai';
 import { AGENTS, AGENT_ORDER } from '@/lib/agents';
-import { Claim, DecisionBrief, StreamEvent } from '@/lib/types';
+import { Claim, ConfidenceBreakdown, DecisionBrief, StreamEvent } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -69,7 +69,7 @@ async function runAgent(
   controller: ReadableStreamDefaultController,
   phase: 'opening' | 'rebuttal' = 'opening',
   round = 1
-): Promise<string> {
+): Promise<{ content: string; claims: Claim[] }> {
   const agent = AGENTS[role as keyof typeof AGENTS];
 
   send(controller, { type: 'round_start', agentRole: role as never, round, phase });
@@ -105,13 +105,33 @@ async function runAgent(
 
   const claims = extractClaims(full, role, phase);
   send(controller, { type: 'round_end', agentRole: role as never, content: full, claims, phase });
-  return full;
+  return { content: full, claims };
+}
+
+// AI explanation layer ("why am I seeing this?") — 2026 AI UX trend. Surfaces
+// how much agents actually challenged each other vs. converged, instead of
+// presenting the confidence score as an unexplained black box.
+function computeConfidenceBreakdown(allClaims: Claim[]): ConfidenceBreakdown {
+  const challengeClaims = allClaims.filter(c => c.type === 'challenge' || c.type === 'rebuttal').length;
+  const supportingClaims = allClaims.length - challengeClaims;
+  const agreementScore = allClaims.length
+    ? Math.round((supportingClaims / allClaims.length) * 100)
+    : 50;
+
+  const perAgent = AGENT_ORDER.map((agentRole) => {
+    const agentClaims = allClaims.filter(c => c.agentRole === agentRole);
+    const challenges = agentClaims.filter(c => c.type === 'challenge' || c.type === 'rebuttal').length;
+    return { agentRole, challenges, total: agentClaims.length };
+  });
+
+  return { totalClaims: allClaims.length, challengeClaims, supportingClaims, agreementScore, perAgent };
 }
 
 async function generateBrief(
   question: string,
   debate: string,
-  controller: ReadableStreamDefaultController
+  controller: ReadableStreamDefaultController,
+  breakdown: ConfidenceBreakdown
 ): Promise<void> {
   const stream = await getClient().chat.completions.create({
     model: MODEL,
@@ -155,6 +175,7 @@ async function generateBrief(
       risks: [],
       nextSteps: [],
     };
+    brief.breakdown = breakdown;
     send(controller, { type: 'brief', brief });
   } catch {
     send(controller, { type: 'error', message: 'Failed to generate decision brief.' });
@@ -175,13 +196,15 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       try {
         // Round 1: Opening arguments
+        const allClaims: Claim[] = [];
         const openingResults: string[] = [];
         for (const role of AGENT_ORDER) {
           const history = openingResults
             .map((h, i) => `[${AGENTS[AGENT_ORDER[i]].name}]: ${h}`)
             .join('\n\n');
-          const content = await runAgent(role, question, history, controller, 'opening', 1);
+          const { content, claims } = await runAgent(role, question, history, controller, 'opening', 1);
           openingResults.push(content);
+          allClaims.push(...claims);
         }
 
         // Signal phase transition
@@ -194,8 +217,9 @@ export async function POST(req: NextRequest) {
 
         const rebuttalResults: string[] = [];
         for (const role of AGENT_ORDER) {
-          const content = await runAgent(role, question, fullRound1, controller, 'rebuttal', 2);
+          const { content, claims } = await runAgent(role, question, fullRound1, controller, 'rebuttal', 2);
           rebuttalResults.push(content);
+          allClaims.push(...claims);
         }
 
         // Full transcript for brief
@@ -209,7 +233,8 @@ export async function POST(req: NextRequest) {
             .join('\n\n---\n\n'),
         ].join('\n');
 
-        await generateBrief(question, fullDebate, controller);
+        const breakdown = computeConfidenceBreakdown(allClaims);
+        await generateBrief(question, fullDebate, controller, breakdown);
         send(controller, { type: 'done' });
       } catch (err) {
         send(controller, {

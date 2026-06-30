@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { AGENTS } from '@/lib/agents';
 import { DecisionBrief } from '@/lib/types';
 
 interface Props {
@@ -7,8 +9,10 @@ interface Props {
 }
 
 export default function DecisionBriefCard({ brief }: Props) {
+  const [showWhy, setShowWhy] = useState(false);
   const conf = brief.confidence ?? 50;
   const confColor = conf >= 70 ? '#10B981' : conf >= 40 ? '#F59E0B' : '#EF4444';
+  const breakdown = brief.breakdown;
 
   return (
     <div className="rounded-2xl border fade-up" style={{ background: '#0d1320', borderColor: 'rgba(255,255,255,0.1)' }}>
@@ -18,11 +22,46 @@ export default function DecisionBriefCard({ brief }: Props) {
           <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-base">⚖️</div>
           <h2 className="font-bold text-white">Decision Brief</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {breakdown && (
+            <button
+              onClick={() => setShowWhy(v => !v)}
+              className="text-xs text-slate-500 hover:text-slate-300 underline decoration-dotted transition-colors"
+            >
+              why this score?
+            </button>
+          )}
           <span className="text-xs text-slate-400">Confidence</span>
           <span className="font-bold text-lg" style={{ color: confColor }}>{conf}%</span>
         </div>
       </div>
+
+      {/* AI explanation layer — surfaces how much agents agreed vs. challenged each other */}
+      {breakdown && showWhy && (
+        <div className="px-6 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}>
+          <div className="text-xs uppercase tracking-widest text-slate-500 mb-3">Why this confidence score</div>
+          <p className="text-sm text-slate-400 mb-3">
+            Across {breakdown.totalClaims} claims this round, {breakdown.agreementScore}% were supporting or
+            concluding statements rather than direct challenges — {breakdown.challengeClaims} claims pushed back
+            on another agent's position.
+          </p>
+          <div className="space-y-1.5">
+            {breakdown.perAgent.map(({ agentRole, challenges, total }) => {
+              const agent = AGENTS[agentRole];
+              const pct = total > 0 ? Math.round((challenges / total) * 100) : 0;
+              return (
+                <div key={agentRole} className="flex items-center gap-2 text-xs">
+                  <span className="w-32 flex-shrink-0 text-slate-400">{agent.emoji} {agent.name}</span>
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: agent.color }} />
+                  </div>
+                  <span className="w-24 flex-shrink-0 text-slate-500">{challenges}/{total} challenged</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Summary */}

@@ -31,6 +31,14 @@ export interface DebateRound {
   timestamp: number;
 }
 
+export interface ConfidenceBreakdown {
+  totalClaims: number;
+  challengeClaims: number;
+  supportingClaims: number;
+  agreementScore: number; // 0-100: share of claims that weren't challenges
+  perAgent: { agentRole: AgentRole; challenges: number; total: number }[];
+}
+
 export interface DecisionBrief {
   summary: string;
   majority: string;
@@ -39,6 +47,7 @@ export interface DecisionBrief {
   confidence: number;
   risks: string[];
   nextSteps: string[];
+  breakdown?: ConfidenceBreakdown;
 }
 
 export interface DebateState {
