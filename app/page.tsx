@@ -9,6 +9,7 @@ import DecisionBriefCard from '@/components/DecisionBrief';
 import ShareBar from '@/components/ShareBar';
 import DebateHistory, { saveDebate, DebateRecord } from '@/components/DebateHistory';
 import DebateRail from '@/components/DebateRail';
+import ConsensusBar from '@/components/ConsensusBar';
 
 const EXAMPLES = [
   'Should I build a SaaS product solo or find a co-founder first?',
@@ -244,6 +245,7 @@ export default function WarRoom() {
             </div>
             <DebateRail status={status} phase={currentPhase} agents={agents} />
             {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
+            {claims.length > 0 && <ConsensusBar claims={claims} />}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               <div className="xl:col-span-1 flex flex-col gap-3">
                 {AGENT_ORDER.map(role => (
