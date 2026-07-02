@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Agent } from '@/lib/types';
 
 interface Props {
@@ -15,7 +16,9 @@ interface Props {
 export default function AgentCard({
   agent, isActive, isDone, content, rebuttalContent, isStreaming, currentPhase,
 }: Props) {
+  const [expanded, setExpanded] = useState(false);
   const showRebuttal = rebuttalContent || (isActive && currentPhase === 'rebuttal');
+  const isExpandable = isDone && (content.length > 280 || rebuttalContent.length > 180);
 
   return (
     <div
@@ -49,6 +52,20 @@ export default function AgentCard({
               {(content.split(/\s+/).filter(Boolean).length + rebuttalContent.split(/\s+/).filter(Boolean).length)} words
             </span>
           )}
+          {isExpandable && (
+            <button
+              onClick={() => setExpanded(v => !v)}
+              className="text-xs px-2 py-0.5 rounded-md transition-colors"
+              style={{
+                color: agent.color,
+                background: `${agent.color}15`,
+                border: `1px solid ${agent.color}30`,
+              }}
+              aria-label={expanded ? 'Collapse argument' : 'Expand argument'}
+            >
+              {expanded ? '↑ less' : '↓ more'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -60,7 +77,7 @@ export default function AgentCard({
           </div>
         )}
         {content && (
-          <p className="text-sm text-slate-300 leading-relaxed fade-up line-clamp-6">
+          <p className={`text-sm text-slate-300 leading-relaxed fade-up${expanded ? '' : ' line-clamp-6'}`}>
             {content}
             {isStreaming && isActive && currentPhase === 'opening' && (
               <span
@@ -91,7 +108,7 @@ export default function AgentCard({
             </div>
           )}
           {rebuttalContent && (
-            <p className="text-sm text-slate-300 leading-relaxed fade-up line-clamp-5">
+            <p className={`text-sm text-slate-300 leading-relaxed fade-up${expanded ? '' : ' line-clamp-5'}`}>
               {rebuttalContent}
               {isStreaming && isActive && currentPhase === 'rebuttal' && (
                 <span
