@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import OpenAI from 'openai';
 import { AGENTS, AGENT_ORDER } from '@/lib/agents';
-import { Claim, ConfidenceBreakdown, DecisionBrief, StreamEvent } from '@/lib/types';
+import { Claim, ConfidenceBreakdown, DecisionBrief, StreamEvent, SynthesisResult } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -127,6 +127,42 @@ function computeConfidenceBreakdown(allClaims: Claim[]): ConfidenceBreakdown {
   return { totalClaims: allClaims.length, challengeClaims, supportingClaims, agreementScore, perAgent };
 }
 
+// 2026 Agentic UX trend: a meta-agent that synthesizes across all debate agents,
+// surfacing consensus, core tension, and ranked decision factors — the "battlemap"
+// a decision-maker needs BEFORE reading the full transcript.
+async function runSynthesis(
+  question: string,
+  fullTranscript: string,
+  controller: ReadableStreamDefaultController,
+): Promise<void> {
+  send(controller, { type: 'phase_change', phase: 'synthesis' });
+  try {
+    const resp = await getClient().chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: AGENTS.synthesis.systemPrompt },
+        {
+          role: 'user',
+          content: `Question debated: "${question}"\n\nFull debate transcript:\n${fullTranscript}\n\nOutput the synthesis JSON now.`,
+        },
+      ],
+      max_tokens: 400,
+      temperature: 0.2,
+      stream: false,
+    });
+    const raw = resp.choices[0]?.message?.content || '';
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const result: SynthesisResult = jsonMatch ? JSON.parse(jsonMatch[0]) : {
+      consensus: ['Multiple perspectives were considered.'],
+      coreTension: 'Core trade-offs remain unresolved.',
+      decisionFactors: ['Context and constraints', 'Risk tolerance', 'Available alternatives'],
+    };
+    send(controller, { type: 'synthesis', result });
+  } catch {
+    // Synthesis failure is non-fatal — the brief still generates
+  }
+}
+
 async function generateBrief(
   question: string,
   debate: string,
@@ -222,7 +258,7 @@ export async function POST(req: NextRequest) {
           allClaims.push(...claims);
         }
 
-        // Full transcript for brief
+        // Full transcript for synthesis and brief
         const fullDebate = [
           '=== ROUND 1: OPENING ARGUMENTS ===',
           fullRound1,
@@ -234,6 +270,7 @@ export async function POST(req: NextRequest) {
         ].join('\n');
 
         const breakdown = computeConfidenceBreakdown(allClaims);
+        await runSynthesis(question, fullDebate, controller);
         await generateBrief(question, fullDebate, controller, breakdown);
         send(controller, { type: 'done' });
       } catch (err) {

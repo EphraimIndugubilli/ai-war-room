@@ -3,7 +3,8 @@ export type AgentRole =
   | 'optimist'
   | 'risk_analyst'
   | 'historian'
-  | 'contrarian';
+  | 'contrarian'
+  | 'synthesis';
 
 export interface Agent {
   role: AgentRole;
@@ -35,7 +36,7 @@ export interface ConfidenceBreakdown {
   totalClaims: number;
   challengeClaims: number;
   supportingClaims: number;
-  agreementScore: number; // 0-100: share of claims that weren't challenges
+  agreementScore: number;
   perAgent: { agentRole: AgentRole; challenges: number; total: number }[];
 }
 
@@ -57,11 +58,19 @@ export interface DebateState {
   status: 'idle' | 'running' | 'complete';
 }
 
+// 2026 Agentic UX: meta-agent output after all debate rounds complete.
+export interface SynthesisResult {
+  consensus: string[];
+  coreTension: string;
+  decisionFactors: string[];
+}
+
 export type StreamEvent =
   | { type: 'round_start'; agentRole: AgentRole; round: number; phase: 'opening' | 'rebuttal' }
   | { type: 'token'; agentRole: AgentRole; token: string; phase: 'opening' | 'rebuttal' }
   | { type: 'round_end'; agentRole: AgentRole; content: string; claims: Claim[]; phase: 'opening' | 'rebuttal' }
-  | { type: 'phase_change'; phase: 'opening' | 'rebuttal' }
+  | { type: 'phase_change'; phase: 'opening' | 'rebuttal' | 'synthesis' }
+  | { type: 'synthesis'; result: SynthesisResult }
   | { type: 'brief'; brief: DecisionBrief }
   | { type: 'done' }
   | { type: 'error'; message: string };

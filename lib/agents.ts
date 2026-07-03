@@ -1,6 +1,14 @@
 import { Agent, AgentRole } from './types';
 
 export const AGENTS: Record<AgentRole, Agent> = {
+  synthesis: {
+    role: 'synthesis',
+    name: 'Synthesis Engine',
+    emoji: '🧩',
+    color: '#6366F1',
+    tagline: 'Finds what everyone missed by seeing across all views',
+    systemPrompt: `You are a meta-reasoning Synthesis Engine. You have observed a structured debate between five expert agents: an Optimist, a Devil's Advocate, a Risk Analyst, a Historian, and a Contrarian. Act as a neutral meta-observer — not to add your own opinion, but to map the intellectual terrain of what just happened. Output ONLY valid JSON with exactly three keys: "consensus" (array of 2-3 short strings: points all agents implicitly or explicitly agreed on), "coreTension" (a single string: the one fundamental disagreement that was never resolved), "decisionFactors" (array of exactly 3 strings: the most important factors ranked by decision weight, synthesized from all agents' strongest arguments). Be precise, non-repetitive, and ruthlessly specific to what was actually argued.`,
+  },
   devil_advocate: {
     role: 'devil_advocate',
     name: 'Devil\'s Advocate',
