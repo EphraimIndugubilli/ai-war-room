@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Agent } from '@/lib/types';
+import { Agent, Claim } from '@/lib/types';
 
 interface Props {
   agent: Agent;
@@ -11,14 +11,29 @@ interface Props {
   rebuttalContent: string;
   isStreaming: boolean;
   currentPhase: 'opening' | 'rebuttal';
+  claims?: Claim[];
 }
 
+const CLAIM_LABELS: Record<string, string> = {
+  argument:   'arg',
+  challenge:  'chal',
+  rebuttal:   'rebut',
+  support:    'sup',
+  conclusion: 'concl',
+};
+
 export default function AgentCard({
-  agent, isActive, isDone, content, rebuttalContent, isStreaming, currentPhase,
+  agent, isActive, isDone, content, rebuttalContent, isStreaming, currentPhase, claims = [],
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const showRebuttal = rebuttalContent || (isActive && currentPhase === 'rebuttal');
   const isExpandable = isDone && (content.length > 280 || rebuttalContent.length > 180);
+
+  const agentClaims = claims.filter(c => c.agentRole === agent.role);
+  const claimCounts = agentClaims.reduce<Record<string, number>>((acc, c) => {
+    acc[c.type] = (acc[c.type] ?? 0) + 1;
+    return acc;
+  }, {});
 
   return (
     <div
@@ -48,9 +63,25 @@ export default function AgentCard({
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: agent.color }} />
           )}
           {isDone && !isActive && (
-            <span className="text-xs text-slate-500 tabular-nums">
-              {(content.split(/\s+/).filter(Boolean).length + rebuttalContent.split(/\s+/).filter(Boolean).length)} words
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              <span className="text-xs text-slate-500 tabular-nums">
+                {(content.split(/\s+/).filter(Boolean).length + rebuttalContent.split(/\s+/).filter(Boolean).length)} words
+              </span>
+              {Object.entries(claimCounts).map(([type, count]) => (
+                <span
+                  key={type}
+                  title={`${count} ${type} claim${count !== 1 ? 's' : ''}`}
+                  className="text-[10px] px-1.5 py-0.5 rounded-full tabular-nums"
+                  style={{
+                    background: `${agent.color}18`,
+                    color: `${agent.color}cc`,
+                    border: `1px solid ${agent.color}30`,
+                  }}
+                >
+                  {CLAIM_LABELS[type] ?? type} ×{count}
+                </span>
+              ))}
+            </div>
           )}
           {isExpandable && (
             <button

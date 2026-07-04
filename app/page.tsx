@@ -258,6 +258,7 @@ export default function WarRoom() {
                     rebuttalContent={agents[role].rebuttalContent}
                     isStreaming={agents[role].isStreaming}
                     currentPhase={currentPhase}
+                    claims={claims}
                   />
                 ))}
               </div>
