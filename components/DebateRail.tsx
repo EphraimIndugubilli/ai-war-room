@@ -1,7 +1,16 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { AgentRole } from '@/lib/types';
 import { AGENTS, AGENT_ORDER } from '@/lib/agents';
+
+const THINKING_PHRASES: Record<string, string[]> = {
+  optimist:      ['Building the strongest case…', 'Mapping the upside…', 'Finding the tailwinds…', 'Locating real-world analogues…'],
+  devil_advocate:['Stress-testing every assumption…', 'Hunting for fatal flaws…', 'Probing the blind spots…', 'Exposing the hidden risks…'],
+  risk_analyst:  ['Running the probability matrix…', 'Mapping correlated risks…', 'Quantifying downside exposure…', 'Scanning for tail-risk scenarios…'],
+  historian:     ['Searching historical precedents…', 'Cross-referencing past cases…', 'Finding the non-obvious parallel…', 'Extracting lessons from analogues…'],
+  contrarian:    ['Identifying the third path…', 'Reframing the question…', 'Exploring the overlooked option…', 'Challenging the binary…'],
+};
 
 interface AgentProgress {
   content: string;
@@ -16,6 +25,18 @@ interface Props {
 }
 
 export default function DebateRail({ status, phase, agents }: Props) {
+  const [phraseIdx, setPhraseIdx] = useState(0);
+
+  const activeRole = AGENT_ORDER.find(r => agents[r].isActive);
+  const activeAgent = activeRole ? AGENTS[activeRole] : null;
+
+  useEffect(() => {
+    if (!activeRole || status !== 'running') return;
+    setPhraseIdx(0);
+    const id = setInterval(() => setPhraseIdx(i => i + 1), 2500);
+    return () => clearInterval(id);
+  }, [activeRole, status]);
+
   if (status === 'idle') return null;
 
   const openingDone = AGENT_ORDER.filter(r => agents[r].content.length > 0).length;
@@ -23,8 +44,9 @@ export default function DebateRail({ status, phase, agents }: Props) {
   const totalDone = openingDone + rebuttalDone;
   const pct = Math.round((totalDone / 10) * 100);
 
-  const activeRole = AGENT_ORDER.find(r => agents[r].isActive);
-  const activeAgent = activeRole ? AGENTS[activeRole] : null;
+  const thinkingPhrase = activeRole
+    ? (THINKING_PHRASES[activeRole] ?? ['Thinking…'])[phraseIdx % (THINKING_PHRASES[activeRole]?.length ?? 1)]
+    : '';
 
   return (
     <div
@@ -105,7 +127,7 @@ export default function DebateRail({ status, phase, agents }: Props) {
         >
           <span>{activeAgent.emoji}</span>
           <span className="font-medium">{activeAgent.name}</span>
-          <span className="opacity-60">speaking…</span>
+          <span className="opacity-60">{thinkingPhrase}</span>
         </div>
       )}
 
