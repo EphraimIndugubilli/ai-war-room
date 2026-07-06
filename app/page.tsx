@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { AGENTS, AGENT_ORDER } from '@/lib/agents';
 import { AgentRole, Claim, DecisionBrief, StreamEvent } from '@/lib/types';
 import AgentCard from '@/components/AgentCard';
@@ -11,12 +11,57 @@ import DebateHistory, { saveDebate, DebateRecord } from '@/components/DebateHist
 import DebateRail from '@/components/DebateRail';
 import ConsensusBar from '@/components/ConsensusBar';
 
-const EXAMPLES = [
-  'Should I build a SaaS product solo or find a co-founder first?',
-  'Should we rewrite our monolith in microservices?',
-  'Is AI going to replace software engineers in the next 5 years?',
-  'Should a startup raise VC funding or stay bootstrapped?',
+const EXAMPLE_CATEGORIES = [
+  {
+    label: 'Tech',
+    emoji: '💻',
+    questions: [
+      'Should we rewrite our monolith in microservices?',
+      'Is AI going to replace software engineers in the next 5 years?',
+      'Should we build in-house or buy an off-the-shelf solution?',
+    ],
+  },
+  {
+    label: 'Startup',
+    emoji: '🚀',
+    questions: [
+      'Should I build a SaaS product solo or find a co-founder first?',
+      'Should a startup raise VC funding or stay bootstrapped?',
+      'Is it better to launch early with bugs or wait for a polished v1?',
+    ],
+  },
+  {
+    label: 'Strategy',
+    emoji: '♟️',
+    questions: [
+      'Should we expand internationally before dominating the domestic market?',
+      'Is remote-first culture better for team productivity?',
+      'Should we prioritize growth or profitability in year 2?',
+    ],
+  },
 ];
+
+function useDebateTimer(running: boolean): string {
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (running) {
+      startRef.current = Date.now();
+      setElapsed(0);
+      const id = setInterval(() => {
+        setElapsed(Math.floor((Date.now() - (startRef.current ?? Date.now())) / 1000));
+      }, 1000);
+      return () => clearInterval(id);
+    } else {
+      startRef.current = null;
+    }
+  }, [running]);
+
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  return `${m > 0 ? `${m}m ` : ''}${s}s`;
+}
 
 type AgentState = {
   content: string;
@@ -35,6 +80,7 @@ const freshAgents = (): AgentsMap =>
 export default function WarRoom() {
   const [question, setQuestion] = useState('');
   const [status, setStatus] = useState<'idle' | 'running' | 'complete'>('idle');
+  const elapsedStr = useDebateTimer(status === 'running');
   const [agents, setAgents] = useState<AgentsMap>(freshAgents);
   const [currentPhase, setCurrentPhase] = useState<'opening' | 'rebuttal'>('opening');
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -185,6 +231,7 @@ export default function WarRoom() {
                   {currentPhase === 'opening' ? 'Round 1 — Opening' : 'Round 2 — Rebuttals'}
                 </span>
               </div>
+              <span className="text-xs tabular-nums text-slate-500 font-mono">{elapsedStr}</span>
             </div>
           )}
           <DebateHistory
@@ -226,11 +273,19 @@ export default function WarRoom() {
               </div>
             </div>
             {error && <p className="mt-3 text-sm text-red-400 text-center">{error}</p>}
-            <p className="text-xs text-slate-600 mt-5 mb-2 text-center">Try an example</p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {EXAMPLES.map(q => (
-                <button key={q} onClick={() => startDebate(q)} className="text-xs px-3 py-1.5 rounded-full border text-slate-400 hover:text-white transition-all"
-                  style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>{q}</button>
+            <p className="text-xs text-slate-600 mt-5 mb-3 text-center">Try an example</p>
+            <div className="space-y-2">
+              {EXAMPLE_CATEGORIES.map(cat => (
+                <div key={cat.label} className="flex flex-wrap gap-2 items-center">
+                  <span className="text-xs text-slate-600 w-16 shrink-0 text-right">{cat.emoji} {cat.label}</span>
+                  {cat.questions.map(q => (
+                    <button key={q} onClick={() => startDebate(q)}
+                      className="text-xs px-3 py-1.5 rounded-full border text-slate-400 hover:text-white transition-all text-left"
+                      style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
               ))}
             </div>
           </div>
