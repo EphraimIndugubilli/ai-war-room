@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import OpenAI from 'openai';
 import { AGENTS, AGENT_ORDER } from '@/lib/agents';
-import { Claim, ConfidenceBreakdown, DecisionBrief, StreamEvent, SynthesisResult } from '@/lib/types';
+import { Claim, ConfidenceBreakdown, DecisionBrief, StanceShift, StreamEvent, SynthesisResult } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -108,6 +108,29 @@ async function runAgent(
   return { content: full, claims };
 }
 
+// 2026 AI transparency trend: detect whether each agent shifted their stance between
+// rounds by scanning their rebuttal for explicit concession language. "Strong" = direct
+// admission; "weak" = hedge/qualifier; "none" = held their ground. Surfaces intellectual
+// honesty so users can see which agents updated on evidence vs. simply restated.
+const STRONG_CONCESSION_CUES = [
+  'i concede', 'i acknowledge', 'fair point', 'you are right', 'i was wrong',
+  'must admit', 'i accept', 'i agree that', 'valid point', 'that is correct',
+  'updating my view', 'changed my mind', 'i stand corrected',
+];
+const WEAK_CONCESSION_CUES = [
+  'to be fair', 'partially', 'to some extent', 'i understand the concern',
+  'granted', 'some merit', 'i see the point', 'while i maintain',
+];
+
+function detectStanceShift(agentRole: string, rebuttalText: string): StanceShift {
+  const lower = rebuttalText.toLowerCase();
+  const strongCue = STRONG_CONCESSION_CUES.find(c => lower.includes(c));
+  if (strongCue) return { agentRole, shifted: true, strength: 'strong', cue: strongCue };
+  const weakCue = WEAK_CONCESSION_CUES.find(c => lower.includes(c));
+  if (weakCue) return { agentRole, shifted: true, strength: 'weak', cue: weakCue };
+  return { agentRole, shifted: false, strength: 'none', cue: '' };
+}
+
 // AI explanation layer ("why am I seeing this?") — 2026 AI UX trend. Surfaces
 // how much agents actually challenged each other vs. converged, instead of
 // presenting the confidence score as an unexplained black box.
@@ -167,7 +190,8 @@ async function generateBrief(
   question: string,
   debate: string,
   controller: ReadableStreamDefaultController,
-  breakdown: ConfidenceBreakdown
+  breakdown: ConfidenceBreakdown,
+  stanceShifts: StanceShift[] = []
 ): Promise<void> {
   const stream = await getClient().chat.completions.create({
     model: MODEL,
@@ -212,6 +236,7 @@ async function generateBrief(
       nextSteps: [],
     };
     brief.breakdown = breakdown;
+    brief.stanceShifts = stanceShifts;
     send(controller, { type: 'brief', brief });
   } catch {
     send(controller, { type: 'error', message: 'Failed to generate decision brief.' });
@@ -258,6 +283,12 @@ export async function POST(req: NextRequest) {
           allClaims.push(...claims);
         }
 
+        // Stance-shift analysis — 2026 AI transparency: did agents update on evidence?
+        const stanceShifts = AGENT_ORDER.map((role, i) =>
+          detectStanceShift(role, rebuttalResults[i] ?? '')
+        );
+        send(controller, { type: 'stance_shifts', shifts: stanceShifts });
+
         // Full transcript for synthesis and brief
         const fullDebate = [
           '=== ROUND 1: OPENING ARGUMENTS ===',
@@ -271,7 +302,7 @@ export async function POST(req: NextRequest) {
 
         const breakdown = computeConfidenceBreakdown(allClaims);
         await runSynthesis(question, fullDebate, controller);
-        await generateBrief(question, fullDebate, controller, breakdown);
+        await generateBrief(question, fullDebate, controller, breakdown, stanceShifts);
         send(controller, { type: 'done' });
       } catch (err) {
         send(controller, {

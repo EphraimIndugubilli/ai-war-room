@@ -40,6 +40,15 @@ export interface ConfidenceBreakdown {
   perAgent: { agentRole: AgentRole; challenges: number; total: number }[];
 }
 
+// 2026 AI transparency trend: expose which agents updated their position
+// after hearing counterarguments — a leading signal of debate quality.
+export interface StanceShift {
+  agentRole: string;
+  shifted: boolean;
+  strength: 'none' | 'weak' | 'strong';
+  cue: string;
+}
+
 export interface DecisionBrief {
   summary: string;
   majority: string;
@@ -49,6 +58,7 @@ export interface DecisionBrief {
   risks: string[];
   nextSteps: string[];
   breakdown?: ConfidenceBreakdown;
+  stanceShifts?: StanceShift[];
 }
 
 export interface DebateState {
@@ -72,5 +82,6 @@ export type StreamEvent =
   | { type: 'phase_change'; phase: 'opening' | 'rebuttal' | 'synthesis' }
   | { type: 'synthesis'; result: SynthesisResult }
   | { type: 'brief'; brief: DecisionBrief }
+  | { type: 'stance_shifts'; shifts: StanceShift[] }
   | { type: 'done' }
   | { type: 'error'; message: string };
