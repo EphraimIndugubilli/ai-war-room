@@ -12,6 +12,7 @@ interface Props {
   isStreaming: boolean;
   currentPhase: 'opening' | 'rebuttal';
   claims?: Claim[];
+  maxWords?: number;
 }
 
 const CLAIM_LABELS: Record<string, string> = {
@@ -23,11 +24,13 @@ const CLAIM_LABELS: Record<string, string> = {
 };
 
 export default function AgentCard({
-  agent, isActive, isDone, content, rebuttalContent, isStreaming, currentPhase, claims = [],
+  agent, isActive, isDone, content, rebuttalContent, isStreaming, currentPhase, claims = [], maxWords = 0,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const showRebuttal = rebuttalContent || (isActive && currentPhase === 'rebuttal');
   const isExpandable = isDone && (content.length > 280 || rebuttalContent.length > 180);
+  const myWords = content.split(/\s+/).filter(Boolean).length + rebuttalContent.split(/\s+/).filter(Boolean).length;
+  const densityPct = maxWords > 0 ? Math.round((myWords / maxWords) * 100) : 0;
 
   const agentClaims = claims.filter(c => c.agentRole === agent.role);
   const claimCounts = agentClaims.reduce<Record<string, number>>((acc, c) => {
@@ -120,9 +123,9 @@ export default function AgentCard({
         )}
         {!isActive && !isDone && !content && (
           <div className="space-y-2 py-1" aria-label="Waiting for agent">
-            <div className="h-3 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.06)', width: '88%' }} />
-            <div className="h-3 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.06)', width: '72%', animationDelay: '150ms' }} />
-            <div className="h-3 rounded-full animate-pulse" style={{ background: 'rgba(255,255,255,0.06)', width: '60%', animationDelay: '300ms' }} />
+            <div className="skeleton-shimmer h-3 rounded-full" style={{ width: '88%' }} />
+            <div className="skeleton-shimmer h-3 rounded-full" style={{ width: '72%', animationDelay: '200ms' }} />
+            <div className="skeleton-shimmer h-3 rounded-full" style={{ width: '60%', animationDelay: '400ms' }} />
           </div>
         )}
       </div>
@@ -149,6 +152,22 @@ export default function AgentCard({
               )}
             </p>
           )}
+        </div>
+      )}
+
+      {/* Argument density bar — shown when done, indicates relative contribution depth */}
+      {isDone && maxWords > 0 && (
+        <div className="mt-3 pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-slate-600 uppercase tracking-wider">Argument depth</span>
+            <span className="text-[10px] tabular-nums" style={{ color: `${agent.color}99` }}>{densityPct}%</span>
+          </div>
+          <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${densityPct}%`, background: `linear-gradient(90deg, ${agent.color}80, ${agent.color})` }}
+            />
+          </div>
         </div>
       )}
     </div>

@@ -303,19 +303,29 @@ export default function WarRoom() {
             {claims.length > 0 && <ConsensusBar claims={claims} />}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               <div className="xl:col-span-1 flex flex-col gap-3">
-                {AGENT_ORDER.map(role => (
-                  <AgentCard
-                    key={role}
-                    agent={AGENTS[role]}
-                    isActive={agents[role].isActive}
-                    isDone={agents[role].isDone}
-                    content={agents[role].content}
-                    rebuttalContent={agents[role].rebuttalContent}
-                    isStreaming={agents[role].isStreaming}
-                    currentPhase={currentPhase}
-                    claims={claims}
-                  />
-                ))}
+                {(() => {
+                  const maxWords = Math.max(
+                    ...AGENT_ORDER.map(r => {
+                      const a = agents[r];
+                      return a.content.split(/\s+/).filter(Boolean).length +
+                             a.rebuttalContent.split(/\s+/).filter(Boolean).length;
+                    })
+                  );
+                  return AGENT_ORDER.map(role => (
+                    <AgentCard
+                      key={role}
+                      agent={AGENTS[role]}
+                      isActive={agents[role].isActive}
+                      isDone={agents[role].isDone}
+                      content={agents[role].content}
+                      rebuttalContent={agents[role].rebuttalContent}
+                      isStreaming={agents[role].isStreaming}
+                      currentPhase={currentPhase}
+                      claims={claims}
+                      maxWords={maxWords}
+                    />
+                  ));
+                })()}
               </div>
               <div className="xl:col-span-2 flex flex-col gap-6">
                 <div className="rounded-2xl border overflow-hidden" style={{ background: '#0d1320', borderColor: 'rgba(255,255,255,0.07)', height: 320 }}>
