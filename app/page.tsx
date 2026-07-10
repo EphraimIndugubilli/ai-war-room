@@ -99,10 +99,19 @@ export default function WarRoom() {
     setClaims([]); setBrief(null); setError(''); setStatus('idle');
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    if (q) setQuestion(decodeURIComponent(q));
+  }, []);
+
   const startDebate = useCallback(async (q?: string) => {
     const finalQ = (q || question).trim();
     if (!finalQ) return;
     if (q) setQuestion(q);
+    const url = new URL(window.location.href);
+    url.searchParams.set('q', finalQ);
+    window.history.replaceState(null, '', url.toString());
     reset();
     await new Promise(r => setTimeout(r, 50));
     const debateId = `debate-${Date.now()}`;
