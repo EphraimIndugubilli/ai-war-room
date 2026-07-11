@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { AGENTS, AGENT_ORDER } from '@/lib/agents';
-import { AgentRole, Claim, DecisionBrief, StreamEvent } from '@/lib/types';
+import { AgentRole, Claim, DecisionBrief, StanceShift, StreamEvent } from '@/lib/types';
 import AgentCard from '@/components/AgentCard';
 import ArgumentGraph from '@/components/ArgumentGraph';
 import DecisionBriefCard from '@/components/DecisionBrief';
@@ -87,6 +87,7 @@ export default function WarRoom() {
   const [brief, setBrief] = useState<DecisionBrief | null>(null);
   const [error, setError] = useState('');
   const [currentDebateId, setCurrentDebateId] = useState<string>('');
+  const [stanceShifts, setStanceShifts] = useState<StanceShift[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const phaseRef = useRef<'opening' | 'rebuttal'>('opening');
   const questionRef = useRef<string>('');
@@ -96,7 +97,7 @@ export default function WarRoom() {
     phaseRef.current = 'opening';
     setAgents(freshAgents());
     setCurrentPhase('opening');
-    setClaims([]); setBrief(null); setError(''); setStatus('idle');
+    setClaims([]); setBrief(null); setError(''); setStatus('idle'); setStanceShifts([]);
   }, []);
 
   useEffect(() => {
@@ -196,6 +197,8 @@ export default function WarRoom() {
         if (id) saveDebate({ id, question: questionRef.current, brief: ev.brief, timestamp: Date.now() });
         return id;
       });
+    } else if (ev.type === 'stance_shifts') {
+      setStanceShifts(ev.shifts);
     } else if (ev.type === 'done') {
       setStatus('complete');
     } else if (ev.type === 'error') {
@@ -310,6 +313,28 @@ export default function WarRoom() {
             <DebateRail status={status} phase={currentPhase} agents={agents} />
             {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
             {claims.length > 0 && <ConsensusBar claims={claims} />}
+            {stanceShifts.length > 0 && (
+              <div className="rounded-xl border px-5 py-3 mb-4 fade-up" style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.07)' }}>
+                <span className="text-xs uppercase tracking-widest text-slate-500 block mb-2">Position Drift</span>
+                <div className="flex flex-wrap gap-2">
+                  {stanceShifts.map(s => (
+                    <div key={s.agentRole} className="flex items-center gap-1.5 text-xs rounded-lg px-2.5 py-1.5 border"
+                      style={{
+                        background: s.shifted ? 'rgba(251,146,60,0.08)' : 'rgba(34,197,94,0.08)',
+                        borderColor: s.shifted ? 'rgba(251,146,60,0.25)' : 'rgba(34,197,94,0.15)',
+                      }}>
+                      <span>{s.shifted ? (s.strength === 'strong' ? '↺↺' : '↺') : '→'}</span>
+                      <span style={{ color: s.shifted ? '#fb923c' : '#4ade80' }}>
+                        {AGENTS[s.agentRole as AgentRole]?.name ?? s.agentRole}
+                      </span>
+                      {s.cue && (
+                        <span className="text-slate-600 hidden sm:inline truncate max-w-[8rem]">{s.cue}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               <div className="xl:col-span-1 flex flex-col gap-3">
                 {(() => {
