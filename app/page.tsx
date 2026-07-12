@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { AGENTS, AGENT_ORDER } from '@/lib/agents';
-import { AgentRole, Claim, DecisionBrief, StanceShift, StreamEvent } from '@/lib/types';
+import { AgentRole, Claim, DecisionBrief, StanceShift, StreamEvent, SynthesisResult } from '@/lib/types';
 import AgentCard from '@/components/AgentCard';
 import ArgumentGraph from '@/components/ArgumentGraph';
 import DecisionBriefCard from '@/components/DecisionBrief';
@@ -88,6 +88,7 @@ export default function WarRoom() {
   const [error, setError] = useState('');
   const [currentDebateId, setCurrentDebateId] = useState<string>('');
   const [stanceShifts, setStanceShifts] = useState<StanceShift[]>([]);
+  const [synthesis, setSynthesis] = useState<SynthesisResult | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const phaseRef = useRef<'opening' | 'rebuttal'>('opening');
   const questionRef = useRef<string>('');
@@ -97,7 +98,7 @@ export default function WarRoom() {
     phaseRef.current = 'opening';
     setAgents(freshAgents());
     setCurrentPhase('opening');
-    setClaims([]); setBrief(null); setError(''); setStatus('idle'); setStanceShifts([]);
+    setClaims([]); setBrief(null); setError(''); setStatus('idle'); setStanceShifts([]); setSynthesis(null);
   }, []);
 
   useEffect(() => {
@@ -197,6 +198,8 @@ export default function WarRoom() {
         if (id) saveDebate({ id, question: questionRef.current, brief: ev.brief, timestamp: Date.now() });
         return id;
       });
+    } else if (ev.type === 'synthesis') {
+      setSynthesis(ev.result);
     } else if (ev.type === 'stance_shifts') {
       setStanceShifts(ev.shifts);
     } else if (ev.type === 'done') {
@@ -371,6 +374,46 @@ export default function WarRoom() {
                     ? <div className="flex items-center justify-center h-full"><p className="text-slate-700 text-sm">Claims appear as agents speak…</p></div>
                     : <ArgumentGraph claims={claims} />}
                 </div>
+                {synthesis && (
+                  <div className="rounded-2xl border p-5 fade-up" style={{ background: '#0d1320', borderColor: 'rgba(99,102,241,0.25)' }}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-xl">🧩</span>
+                      <span className="text-xs uppercase tracking-widest text-indigo-400">Synthesis Engine</span>
+                    </div>
+                    {synthesis.consensus.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Points of Consensus</p>
+                        <ul className="space-y-1">
+                          {synthesis.consensus.map((point, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                              <span className="text-green-500 mt-0.5 shrink-0">✓</span>
+                              <span>{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {synthesis.coreTension && (
+                      <div className="mb-4 rounded-xl px-4 py-3 border" style={{ background: 'rgba(239,68,68,0.06)', borderColor: 'rgba(239,68,68,0.2)' }}>
+                        <p className="text-xs text-red-400 uppercase tracking-wider mb-1">Core Tension</p>
+                        <p className="text-sm text-slate-300">{synthesis.coreTension}</p>
+                      </div>
+                    )}
+                    {synthesis.decisionFactors.length > 0 && (
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Top Decision Factors</p>
+                        <ol className="space-y-1">
+                          {synthesis.decisionFactors.map((factor, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                              <span className="text-indigo-400 font-bold shrink-0 w-4">{i + 1}.</span>
+                              <span>{factor}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {brief && (
                   <>
                     <DecisionBriefCard brief={brief} />
